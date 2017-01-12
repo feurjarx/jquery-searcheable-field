@@ -1,0 +1,6 @@
+// after import
+form {
+  .hintable-box {
+    @include hintable-box;
+  }
+}
