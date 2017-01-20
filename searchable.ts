@@ -1,5 +1,4 @@
 const invalidSymbolsRegExp = /[°"§%()\[\]{}=\\?´`'#<>|,;.:+_-]+/g;
-
 const memoize = (function() {
 
     let cache = {};
@@ -11,14 +10,14 @@ const memoize = (function() {
         const cacheValue = cache[cacheKey];
         if (cacheValue) {
 
-            defer.resolve(cacheValue);
+            defer.resolve(cacheValue, cacheKey);
 
         } else {
 
             fn(v => {
                 // success
                 cache[cacheKey] = v;
-                defer.resolve(cache[cacheKey]);
+                defer.resolve(cache[cacheKey], cacheKey);
 
             }, () => {
                 // error
@@ -30,150 +29,161 @@ const memoize = (function() {
     }
 }());
 
-function hintable(selector, listeners: {[key: string]: Function}) {
 
-    const KeyCodeEnum = $.ui.keyCode;
+$(() => {
 
-    const hintsBlockClear = ($hintsBlock: JQuery) => {
-        $hintsBlock.find('.hint').removeClass('active');
-    };
+    $.fn.searchable = function (listeners: {[key: string]: Function}) {
 
-    let activeHintPosition: number;
-    let lastSearchText: string;
+        return this.each((_, elem) => {
 
-    $(selector)
-        .keydown((event: KeyboardEvent) => {
+            const KeyCodeEnum = $.ui.keyCode;
 
-            let $field = $(event.target);
-            let $hintsBlock = $field.prev('.hints-block');
-            if (!$hintsBlock.is(':empty')) {
+            const hintsBlockClear = ($hintsBlock: JQuery) => {
+                $hintsBlock.find('.hint').removeClass('active');
+            };
 
-                let $hints = $hintsBlock.find('.hint');
-                let hintsLength = $hints.length;
+            let activeHintPosition: number;
 
-                switch (event.keyCode) {
-                    case KeyCodeEnum.ENTER:
-                        $($hints.get(activeHintPosition)).trigger('click');
-                        break;
+            $(elem)
+                .keydown((event: KeyboardEvent) => {
 
-                    case KeyCodeEnum.UP:
+                    let $field = $(event.target);
+                    let $hintsBlock = $field.prev('.hints-block');
+                    if (!$hintsBlock.is(':empty')) {
 
-                        hintsBlockClear($hintsBlock);
-                        activeHintPosition = (activeHintPosition - 1);
-                        activeHintPosition = activeHintPosition < 0 ? hintsLength - 1 : activeHintPosition;
+                        let $hints = $hintsBlock.find('.hint');
+                        let hintsLength = $hints.length;
 
-                        $hints.get(activeHintPosition).classList.add('active');
+                        switch (event.keyCode) {
+                            case KeyCodeEnum.ENTER:
+                                $($hints.get(activeHintPosition)).trigger('click');
+                                break;
 
-                        break;
+                            case KeyCodeEnum.UP:
 
-                    case KeyCodeEnum.DOWN:
+                                hintsBlockClear($hintsBlock);
 
-                        hintsBlockClear($hintsBlock);
-                        activeHintPosition = (activeHintPosition + 1) % hintsLength;
-                        $hints.get(activeHintPosition).classList.add('active');
+                                activeHintPosition = activeHintPosition ? activeHintPosition - 1 : hintsLength - 1;
+                                $hints.get(activeHintPosition).classList.add('active');
 
-                        break;
+                                break;
 
-                    default:
-                }
-            }
-        })
-        .keyup((event: KeyboardEvent) => {
+                            case KeyCodeEnum.DOWN:
 
-            if (event.key.length === 1 || event.keyCode === KeyCodeEnum.BACKSPACE) {
+                                hintsBlockClear($hintsBlock);
+                                activeHintPosition = (activeHintPosition + 1) % hintsLength;
+                                $hints.get(activeHintPosition).classList.add('active');
 
-                let $field = $(event.target);
-                let $hintsBlock = $field.prev('.hints-block');
+                                break;
 
-                let searchText = $field.val();
-                if (searchText.length > 1) {
+                            default:
+                        }
+                    }
+                })
+                .keyup((event: KeyboardEvent) => {
 
-                    $hintsBlock.empty();
-                    $hintsBlock.addClass('spin');
+                    if (event.key.length === 1 || event.keyCode === KeyCodeEnum.BACKSPACE) {
 
-                    const httpCall = memoize(searchText, (cache: Function, reject: Function) => {
-                        const searchSuccess = hints => cache(hints);
-                        const searchError = () => reject();
-                        listeners['search'](searchText, searchSuccess, searchError);
-                    });
+                        let $field = $(event.target);
+                        let $hintsBlock = $field.prev('.hints-block');
 
-                    lastSearchText = searchText;
-
-                    httpCall.always(() => {
-                        $hintsBlock.removeClass('spin');
-                    });
-
-                    httpCall.then((hints) => {
-
-                        if (lastSearchText === searchText) {
+                        const searchText = $field.val();
+                        if (searchText.length > 1) {
 
                             $hintsBlock.empty();
-                            activeHintPosition = -1;
-                            if ($field.is(':focus')) {
+                            $hintsBlock.addClass('spin');
 
-                                let counter = 0;
-                                hints.forEach((hint: { title: string; [key: string]: any }) => {
+                            const httpCall = memoize(searchText, (cache: Function, reject: Function) => {
+                                const searchSuccess = hints => cache(hints);
+                                const searchError = () => reject();
+                                listeners['search'](searchText, searchSuccess, searchError);
+                            });
 
-                                    const patternText = searchText.replace(invalidSymbolsRegExp, '');
-                                    const matchText = hint.title.match(new RegExp(searchText, 'gi'))[0];
+                            httpCall.always(() => {
+                                $hintsBlock.removeClass('spin');
+                            });
 
-                                    let $hintLink = $('<a>', {
-                                        href: 'javascript: void(0)',
-                                        'class': 'hint',
-                                        html: hint.title.replace(new RegExp(patternText, 'gi'), '<b>' + matchText + '</b>')
-                                    });
+                            httpCall.then((hints, httpCallSearchText) => {
 
-                                    $hintLink.hover((event: Event) => {
+                                // is still actual?
+                                if (searchText === httpCallSearchText) {
 
-                                        hintsBlockClear($hintsBlock);
+                                    $hintsBlock.empty();
+                                    activeHintPosition = -1;
+                                    if ($field.is(':focus')) {
 
-                                        activeHintPosition = $(event.target)
-                                            .data('prev-active-hint-position', activeHintPosition)
-                                            .index();
+                                        let counter = 0;
+                                        hints.forEach((hint: { title: string; [key: string]: any }) => {
 
-                                    }, (event: Event) => {
+                                            const patternText = httpCallSearchText.replace(invalidSymbolsRegExp, '');
 
-                                        activeHintPosition = $(event.target).data('prev-active-hint-position');
-                                    });
+                                            let matchText = '';
+                                            const match = hint.title.match(new RegExp(httpCallSearchText, 'gi'));
+                                            if (match) {
+                                                matchText = match[0];
+                                            } else {
+                                                throw new Error('Hint title: ' + hint.title + ' | ' + ' httpCallSearchText = ' + httpCallSearchText + ' | ');
+                                            }
 
-                                    $hintLink.on('click', (event: Event) => {
+                                            let $hintLink = $('<a>', {
+                                                href: 'javascript: void(0)',
+                                                'class': 'hint',
+                                                html: hint.title.replace(new RegExp(patternText, 'gi'), '<b>' + matchText + '</b>')
+                                            });
 
-                                        let $hint = $(event.target);
-                                        if (!$hint.is('a')) {
-                                            $hint = $hint.closest('a');
+                                            $hintLink.hover((event: Event) => {
+
+                                                hintsBlockClear($hintsBlock);
+
+                                                activeHintPosition = $(event.target)
+                                                    .data('prev-active-hint-position', activeHintPosition)
+                                                    .index();
+
+                                            }, (event: Event) => {
+
+                                                activeHintPosition = $(event.target).data('prev-active-hint-position');
+                                            });
+
+                                            $hintLink.on('click', (event: Event) => {
+
+                                                let $hint = $(event.target);
+                                                if (!$hint.is('a')) {
+                                                    $hint = $hint.closest('a');
+                                                }
+
+                                                $field.val($hint.text());
+
+                                                $hintsBlock.attr('style', '').empty();
+
+                                                if (listeners['select'] instanceof Function) {
+                                                    listeners['select'](hint);
+                                                }
+                                            });
+
+                                            $hintsBlock
+                                                .css('top', (+$field.height() + 12 + 2) + 'px') // for .form-control padding is 6px and border is 1px
+                                                .prepend($hintLink);
+
+                                            counter++;
+                                        });
+
+                                        if (counter) {
+                                            $field.one('focusout', (event: FocusEvent) => {
+                                                if (!event.relatedTarget) {
+                                                    $hintsBlock.attr('style', '').empty();
+                                                }
+                                            });
                                         }
-
-                                        $field.val($hint.text());
-
-                                        $hintsBlock.attr('style', '').empty();
-
-                                        if (listeners['select'] instanceof Function) {
-                                            listeners['select'](hint);
-                                        }
-                                    });
-
-                                    $hintsBlock
-                                        .css('top', (+$field.height() + 12 + 2) + 'px') // for .form-control padding is 6px and border is 1px
-                                        .prepend($hintLink);
-
-                                    counter++;
-                                });
-
-                                if (counter) {
-                                    $field.one('focusout', (event: FocusEvent) => {
-                                        if (!event.relatedTarget) {
-                                            $hintsBlock.attr('style', '').empty();
-                                        }
-                                    });
+                                    }
                                 }
-                            }
+                            });
+
+                        } else {
+
+                            $hintsBlock.attr('style', '').empty();
                         }
-                    });
-
-                } else {
-
-                    $hintsBlock.attr('style', '').empty();
-                }
-            }
+                    }
+                });
         });
-}
+    }
+});
