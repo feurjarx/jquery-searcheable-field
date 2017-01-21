@@ -1,0 +1,89 @@
+@mixin searchable-box() {
+  position: relative;
+  display: flex;
+  flex-direction: column-reverse;
+
+  .hints-block {
+    margin: 0;
+    width: 100%;
+  }
+
+  .hints-block:not(:empty) + .searchable {
+    border-bottom-right-radius: 0;
+    border-bottom-left-radius: 0;
+  }
+
+  .hints-block:not(:empty) {
+
+    display: flex;
+    flex-direction: column;
+
+    position: absolute;
+    overflow: auto;
+    top: 32px;
+    z-index: 2;
+    background-color: #fff;
+    max-height: 500px;
+    font-size: smaller;
+    margin: 0;
+
+    border: 1px solid $input-border-focus;
+    border-top-width: 0;
+    border-bottom-right-radius: 4px;
+    border-bottom-left-radius: 4px;
+    -webkit-transition: border-color ease-in-out 0.15s, box-shadow ease-in-out 0.15s;
+    -o-transition: border-color ease-in-out 0.15s, box-shadow ease-in-out 0.15s;
+    transition: border-color ease-in-out 0.15s, box-shadow ease-in-out 0.15s;
+    outline: 0;
+    -webkit-box-shadow: inset 0 1px 1px rgba(0, 0, 0, 0.075), 0 0 8px rgba(102, 175, 233, 0.6);
+    box-shadow: inset 0 1px 1px rgba(0, 0, 0, 0.075), 0 0 8px rgba(102, 175, 233, 0.6);
+
+    .hint {
+      border-bottom: 1px solid #ccc;
+      padding: 5px 5px 5px 13px;
+      margin: 0;
+      cursor: pointer;
+      word-break: break-word;
+      text-decoration: none;
+      color: inherit;
+    }
+
+    .hint.active, .hint:hover {
+      background-color: whitesmoke;
+    }
+
+    @include improved-scrolling();
+  }
+
+  .hints-block.spin::before {
+
+    content: '\e839';
+
+    -moz-animation: spin 2s infinite linear;
+    -o-animation: spin 2s infinite linear;
+    -webkit-animation: spin 2s infinite linear;
+    animation: spin 2s infinite linear;
+    display: inline-block;
+
+
+    font-family: "fontello";
+    font-style: normal;
+    font-weight: normal;
+    speak: none;
+    display: inline-block;
+    text-decoration: inherit;
+    width: 1em;
+    margin-right: .2em;
+    text-align: center;
+    font-variant: normal;
+    text-transform: none;
+    line-height: 1em;
+    margin-left: .2em;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+
+    position: absolute;
+    right: 5px;
+    top: 10px;
+  }
+}
