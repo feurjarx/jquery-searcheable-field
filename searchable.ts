@@ -1,27 +1,34 @@
-const invalidSymbolsRegExp = /[°"§%()\[\]{}=\\?´`'#<>|,;.:+_-]+/g;
 const memoize = (function() {
 
     let cache = {};
 
-    return (cacheKey: string, fn: Function) => {
+    return (cacheKey: string, asyncFn: Function) => {
 
         const defer = $.Deferred();
-
-        const cacheValue = cache[cacheKey];
+        const uid = asyncFn.toString().length + '_';
+        const cacheValue = cache[uid + cacheKey];
         if (cacheValue) {
 
-            defer.resolve(cacheValue, cacheKey);
+            defer.resolve(cacheValue, cacheKey, true);
 
         } else {
 
-            fn(v => {
-                // success
-                cache[cacheKey] = v;
-                defer.resolve(cache[cacheKey], cacheKey);
+            let customArgs: Array<any>;
 
-            }, () => {
+            let successAsyncFn = function(v) {
+                // this is uid
+                cache[this + cacheKey] = v;
+
+                const baseArgs = [v, cacheKey, false];
+                customArgs = [].slice.call(arguments, 1);
+                defer.resolve.apply(defer, baseArgs.concat(customArgs));
+            };
+
+            successAsyncFn = successAsyncFn.bind(uid);
+            asyncFn(successAsyncFn, function() {
                 // error
-                defer.reject()
+                customArgs = [].slice.call(arguments, 0);
+                defer.reject.apply(defer, customArgs);
             });
         }
 
@@ -62,7 +69,6 @@ $(() => {
                             case KeyCodeEnum.UP:
 
                                 hintsBlockClear($hintsBlock);
-
                                 activeHintPosition = activeHintPosition ? activeHintPosition - 1 : hintsLength - 1;
                                 $hints.get(activeHintPosition).classList.add('active');
 
